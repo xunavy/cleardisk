@@ -1,0 +1,20 @@
+{
+  "name": "kanso-windows",
+  "version": "1.0.0",
+  "description": "Kanso Windows 版 — 基于日式枯山水视觉与混合编程 Agent 的磁盘用量分析与安全清理工具",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "start": "npm run build && electron .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "electron": "^35.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  }
+}
+
