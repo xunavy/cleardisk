@@ -2,6 +2,8 @@
 
 > 见微知著，还空间以留白。支持 Windows 多盘符的枯山水（Karesansui）磁盘空间可视化分析与混合 Agent 安全清理桌面工具。
 
+![Kanso Windows 实机运行效果图](docs/superpowers/specs/assets/kanso_windows_preview.jpg)
+
 ---
 
 ## 原创致谢与 AI 生成声明 (Original Attribution & AI Port Statement)
@@ -17,6 +19,8 @@
   本仓库（[`xunavy/cleardisk`](https://github.com/xunavy/cleardisk)）旨在将原版 Kanso 极具禅意的**日式枯山水（Karesansui）加权 Voronoi 庭院可视化**与**“固定规则秒扫 + 探索 Agent 深度排查 + 独立复核 Agent 防误删”**理念带到 Windows 平台。本项目代码由 AI 编程助手根据原版 Kanso 的公开网页视觉规范与产品工作流生成，并针对 Windows 多盘符（`C:` / `D:` 等）、Windows 开发者缓存体系及 Windows 回收站安全接口进行了完整本地化适配。特此向原创作者团队 **[Botiverse](https://github.com/botiverse)** 致敬与感谢！
 
 ---
+
+## 系统架构与工作流
 
 ![系统架构图](docs/superpowers/specs/assets/kanso_windows_architecture.png)
 
