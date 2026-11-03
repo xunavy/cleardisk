@@ -1,7 +1,17 @@
 {
   "name": "kanso-windows",
   "version": "1.0.0",
-  "description": "Kanso Windows 版 — 基于日式枯山水视觉与混合编程 Agent 的磁盘用量分析与安全清理工具",
+  "description": "Kanso Windows 版 — 基于 Botiverse 原创 Kanso (https://kanso.botiverse.build/zh-hans/) 与 botiverse/oar 通过 AI 复刻生成的 Windows 磁盘可视化与安全清理工具",
+  "homepage": "https://github.com/xunavy/cleardisk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xunavy/cleardisk.git"
+  },
+  "upstreamAttribution": {
+    "originalProduct": "https://kanso.botiverse.build/zh-hans/",
+    "originalAuthor": "https://github.com/botiverse",
+    "originalRuntimeRepo": "https://github.com/botiverse/oar"
+  },
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",
@@ -17,4 +27,3 @@
     "vitest": "^3.0.0"
   }
 }
-
