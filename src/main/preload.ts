@@ -23,6 +23,7 @@ export interface KansoRendererBridge {
   getSettings(): Promise<AppSettings>;
   saveSettings(settings: Partial<AppSettings>): Promise<AppSettings>;
   getWorkLogs(): Promise<WorkLogEntry[]>;
+  openPathInExplorer(targetPath: string): Promise<boolean>;
   computeGardenLayout(params: {
     width: number;
     height: number;
@@ -46,6 +47,7 @@ const api: KansoRendererBridge = {
   getSettings: () => ipcRenderer.invoke('kanso:get-settings'),
   saveSettings: (settings: Partial<AppSettings>) => ipcRenderer.invoke('kanso:save-settings', settings),
   getWorkLogs: () => ipcRenderer.invoke('kanso:get-worklogs'),
+  openPathInExplorer: (targetPath: string) => ipcRenderer.invoke('kanso:open-path', targetPath),
   computeGardenLayout: (params) =>
     computeKansoGardenLayout({
       width: params.width,

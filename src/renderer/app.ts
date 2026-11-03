@@ -11,6 +11,7 @@ interface KansoWindowBridge {
   getSettings(): Promise<any>;
   saveSettings(settings: any): Promise<any>;
   getWorkLogs(): Promise<any[]>;
+  openPathInExplorer(targetPath: string): Promise<boolean>;
   computeGardenLayout(params: {
     width: number;
     height: number;
@@ -213,11 +214,31 @@ interface Window {
       if (expandedRecIds.has(item.id)) {
         const detailDiv = document.createElement('div');
         detailDiv.className = 'rec-detail';
+        const pathsHtml = (item.paths || [])
+          .map(
+            (p: string) =>
+              `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:3px;">
+                <span style="font-family:var(--mono);font-size:11px;word-break:break-all;">${escapeHtml(p)}</span>
+                <button type="button" class="link-btn btn-open-folder" data-path="${escapeHtml(p)}" style="flex:none;">打开目录</button>
+              </div>`
+          )
+          .join('');
         detailDiv.innerHTML = `
-          <p><strong>依据：</strong>${escapeHtml(item.reason)}</p>
-          <p><strong>复核状态：</strong>${escapeHtml(item.reviewNote || '已通过独立 Agent 安全复核')}</p>
+          <p><strong>判断依据：</strong>${escapeHtml(item.reason)}</p>
+          <p><strong>真实磁盘路径：</strong></p>
+          ${pathsHtml}
+          <p style="margin-top:6px;"><strong>复核状态：</strong>${escapeHtml(item.reviewNote || '已通过独立 Agent 安全复核')}</p>
           <code class="rec-cmd">${escapeHtml(item.command)}</code>
         `;
+        detailDiv.querySelectorAll('.btn-open-folder').forEach((btn) => {
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const targetPath = (btn as HTMLElement).getAttribute('data-path');
+            if (targetPath) {
+              window.kansoApi.openPathInExplorer(targetPath);
+            }
+          });
+        });
         li.appendChild(detailDiv);
       }
 

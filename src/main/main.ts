@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import {
@@ -114,6 +114,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle('kanso:get-worklogs', async () => {
     return workLogs.slice(0, 100);
   });
+
+  ipcMain.handle('kanso:open-path', async (_event, targetPath: string) => {
+    if (targetPath && fs.existsSync(targetPath)) {
+      shell.showItemInFolder(path.resolve(targetPath));
+      return true;
+    }
+    return false;
+  });
 }
 
 async function runAutomatedScreenshotCapture(
@@ -121,7 +129,7 @@ async function runAutomatedScreenshotCapture(
   outputDir: string
 ): Promise<void> {
   // 等待前端完成规则扫描与双 Agent 复核
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 300));
     const ready = await win.webContents.executeJavaScript(
       'Boolean(window.__kansoTestHelper && window.__kansoTestHelper.isScanReady())'

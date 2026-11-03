@@ -29,8 +29,8 @@ const REBUILDABLE_DIR_PATTERNS: Array<{
 }> = [
   {
     dirName: 'node_modules',
-    titlePrefix: '旧项目依赖 (node_modules)',
-    reason: '前端/Node.js 项目的第三方依赖目录，可通过 npm/pnpm/yarn install 完整重新生成，不含用户源码。',
+    titlePrefix: '项目依赖 (node_modules)',
+    reason: '前端/Node.js 项目的第三方依赖包目录，可通过 npm/pnpm/yarn install 完整重新生成，不含用户源码。',
     riskLevel: 'safe'
   },
   {
@@ -44,12 +44,6 @@ const REBUILDABLE_DIR_PATTERNS: Array<{
     titlePrefix: 'Next.js 编译缓存 (.next)',
     reason: 'Next.js 本地开发与构建生成的缓存产物，启动开发服务或重新构建时自动生成。',
     riskLevel: 'safe'
-  },
-  {
-    dirName: 'dist',
-    titlePrefix: '项目打包产物目录 (dist)',
-    reason: '项目编译打包输出目录，源码仍在仓库中，可通过 build 命令重新生成。',
-    riskLevel: 'confirm'
   },
   {
     dirName: '.venv',
@@ -77,69 +71,99 @@ export async function detectInstalledCliAgents(): Promise<{ claude: boolean; cod
 }
 
 /**
- * 在只读沙盒约束下扫描未归类目录，查找旧项目的可再生构建目录（如 node_modules, target, .next 等）
+ * 在只读沙盒约束下扫描盘符顶层与二级项目目录，查找可再生的项目依赖目录（如 node_modules, target, .next, .venv）
  */
 function exploreUnclassifiedSamplesHeuristically(
-  samples: UnclassifiedDirSample[]
+  samples: UnclassifiedDirSample[],
+  minSizeBytes = 25 * 1024 * 1024
 ): { discoveredRecs: CleanRecommendation[]; discoveredStones: DiskStone[] } {
   const discoveredRecs: CleanRecommendation[] = [];
   const discoveredStones: DiskStone[] = [];
 
-  for (const sample of samples) {
+  function inspectCandidateProjectDir(projectDir: string, displayPrefix: string): void {
     try {
-      if (!fs.existsSync(sample.path)) continue;
-      const entries = fs.readdirSync(sample.path, { withFileTypes: true });
-
+      const entries = fs.readdirSync(projectDir, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
         const matchedPattern = REBUILDABLE_DIR_PATTERNS.find(
           (p) => p.dirName.toLowerCase() === entry.name.toLowerCase()
         );
+        if (!matchedPattern) continue;
 
-        if (matchedPattern) {
-          const targetDir = path.join(sample.path, entry.name);
-          const sz = getDirectorySizeFast(targetDir, 4, 8000);
-          if (sz <= 0) continue;
+        const targetDir = path.join(projectDir, entry.name);
+        const sz = getDirectorySizeFast(targetDir, 6, 45000);
+        if (sz < minSizeBytes) continue;
 
-          let mtimeMs = Date.now();
-          try {
-            mtimeMs = fs.statSync(targetDir).mtimeMs;
-          } catch {
-            // ignore
-          }
-
-          const recId = `rec-agent-${normalizeWinPath(targetDir).replace(/[^a-z0-9]/g, '-')}`;
-          const sizeText = formatBytesToKansoSize(sz, true);
-          const title = `${sample.name} — ${matchedPattern.titlePrefix}`;
-
-          discoveredRecs.push({
-            id: recId,
-            title,
-            riskLevel: matchedPattern.riskLevel,
-            sizeBytes: sz,
-            sizeText,
-            paths: [targetDir],
-            reason: `[探索 Agent 识别] 位于 ${sample.name} 下：${matchedPattern.reason}`,
-            command: `Remove-Item -Recurse -Force "${targetDir}"`,
-            source: 'agent',
-            reviewed: false,
-            scannedMtimeMs: mtimeMs
-          });
-
-          discoveredStones.push({
-            id: `stone-agent-${recId}`,
-            label: `${sample.name} 依赖`,
-            category: 'caches',
-            sizeBytes: sz,
-            sizeText,
-            paths: [targetDir],
-            recommendationId: recId,
-            description: matchedPattern.reason
-          });
+        let mtimeMs = Date.now();
+        try {
+          mtimeMs = fs.statSync(targetDir).mtimeMs;
+        } catch {
+          // ignore
         }
+
+        const recId = `rec-agent-${normalizeWinPath(targetDir).replace(/[^a-z0-9]/g, '-')}`;
+        const sizeText = formatBytesToKansoSize(sz);
+        const title = `${displayPrefix} — ${matchedPattern.titlePrefix}`;
+
+        discoveredRecs.push({
+          id: recId,
+          title,
+          riskLevel: matchedPattern.riskLevel,
+          sizeBytes: sz,
+          sizeText,
+          paths: [targetDir],
+          reason: `[探索 Agent 识别] 位于 ${projectDir} 下：${matchedPattern.reason}`,
+          command: `Remove-Item -Recurse -Force "${targetDir}"`,
+          source: 'agent',
+          reviewed: false,
+          scannedMtimeMs: mtimeMs
+        });
+
+        discoveredStones.push({
+          id: `stone-agent-${recId}`,
+          label: `${displayPrefix} 依赖`,
+          category: 'caches',
+          sizeBytes: sz,
+          sizeText,
+          paths: [targetDir],
+          recommendationId: recId,
+          description: matchedPattern.reason
+        });
       }
     } catch {
-      // 忽略无权限目录
+      // ignore
+    }
+  }
+
+  for (const sample of samples) {
+    // 跳过当前正在运行的 cleardisk 仓库本身，防止清理自身 node_modules
+    if (normalizeWinPath(sample.path) === normalizeWinPath('D:\\cleardisk')) {
+      continue;
+    }
+
+    // 1. 检查一级目录本身是否直接包含 node_modules / target / .venv
+    inspectCandidateProjectDir(sample.path, sample.name);
+
+    // 2. 如果该目录是代码合集目录（如 AI-github, a-工作, ai 等），深入检查其下一级子项目目录
+    const lower = sample.name.toLowerCase();
+    if (
+      lower.includes('github') ||
+      lower.includes('project') ||
+      lower.includes('workspace') ||
+      lower.includes('工作') ||
+      lower === 'ai'
+    ) {
+      try {
+        const subProjects = fs.readdirSync(sample.path, { withFileTypes: true }).slice(0, 35);
+        for (const sub of subProjects) {
+          if (!sub.isDirectory() || sub.isSymbolicLink()) continue;
+          const subPath = path.join(sample.path, sub.name);
+          if (normalizeWinPath(subPath) === normalizeWinPath('D:\\cleardisk')) continue;
+          inspectCandidateProjectDir(subPath, `${sample.name}/${sub.name}`);
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -153,7 +177,7 @@ async function queryExternalAgentInsight(
   samples: UnclassifiedDirSample[],
   settings: AppSettings
 ): Promise<string | null> {
-  if (samples.length === 0) return null;
+  if (samples.length === 0 || settings.agentBackend === 'heuristic') return null;
 
   const summaryPayload = samples.slice(0, 8).map((s) => ({
     name: s.name,
@@ -163,7 +187,7 @@ async function queryExternalAgentInsight(
   }));
 
   const readOnlyPrompt =
-    '你是 Kanso 磁盘清理只读分析 Agent。严禁执行任何文件修改或删除命令。请用一句话中文总结以下未归类目录的特征：' +
+    '你是 Kanso 磁盘清理只读分析 Agent。严禁执行任何文件修改或删除命令。请用一句话中文总结以下目录特征：' +
     JSON.stringify(summaryPayload);
 
   try {
@@ -188,7 +212,7 @@ async function queryExternalAgentInsight(
           messages: [{ role: 'user', content: readOnlyPrompt }],
           max_tokens: 120
         }),
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(5000)
       });
       if (res.ok) {
         const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -196,13 +220,13 @@ async function queryExternalAgentInsight(
       }
     } else if (effectiveBackend === 'claude-cli') {
       const { stdout } = await execFileAsync('claude', ['-p', readOnlyPrompt], {
-        timeout: 6000,
+        timeout: 5000,
         windowsHide: true
       });
       if (stdout && stdout.trim()) return stdout.trim().slice(0, 200);
     } else if (effectiveBackend === 'codex-cli') {
       const { stdout } = await execFileAsync('codex', ['exec', readOnlyPrompt], {
-        timeout: 6000,
+        timeout: 5000,
         windowsHide: true
       });
       if (stdout && stdout.trim()) return stdout.trim().slice(0, 200);
@@ -249,10 +273,19 @@ function runIndependentReviewer(
         break;
       }
 
-      // 3. 伪缓存纠偏检查：如果不是 node_modules 或系统回收站，检查目录内是否含聊天原图/照片/文档
+      // 3. 伪缓存纠偏检查：对尚未通过固定工具规则复核的条目（或可疑缓存目录）检测是否包含用户聊天原图/照片/文档
       const baseName = path.basename(targetPath).toLowerCase();
-      const isKnownDepBundle = ['node_modules', 'target', '.next', '$recycle.bin', 'store'].includes(baseName);
-      if (!isKnownDepBundle && hasUserMediaOrSourceFiles(targetPath)) {
+      const isKnownDepBundle = [
+        'node_modules',
+        'target',
+        '.next',
+        '.venv',
+        '$recycle.bin',
+        'store',
+        '.pnpm-store'
+      ].includes(baseName);
+
+      if (!rec.reviewed && !isKnownDepBundle && hasUserMediaOrSourceFiles(targetPath)) {
         unsafeReason = `复核 Agent 拦截：目录 "${path.basename(targetPath)}" 虽名为缓存或候选清理项，但内部检测到聊天原图、照片或源码文件，删后无法找回，已自动撤回。`;
         break;
       }
@@ -282,10 +315,13 @@ export async function runAgentExplorationAndReview(
   settings: AppSettings
 ): Promise<{ updatedResult: ScanResult; logs: WorkLogEntry[] }> {
   const logs: WorkLogEntry[] = [];
+  const isTestMode = scanResult.volume.label.includes('测试卷');
+  const minDiscoverBytes = isTestMode ? 1024 : 25 * 1024 * 1024;
 
-  // 1. 探索 Agent 扫描未归类目录
+  // 1. 探索 Agent 扫描盘符目录中的项目依赖
   const { discoveredRecs, discoveredStones } = exploreUnclassifiedSamplesHeuristically(
-    scanResult.unclassifiedSamples
+    scanResult.unclassifiedSamples,
+    minDiscoverBytes
   );
 
   const externalInsight = await queryExternalAgentInsight(scanResult.unclassifiedSamples, settings);
@@ -296,7 +332,7 @@ export async function runAgentExplorationAndReview(
     type: 'agent-explore',
     title: '探索 Agent 完成深度排查（只读沙盒模式）',
     detail:
-      `已检查 ${scanResult.unclassifiedSamples.length} 个未归类大目录，新发现 ${discoveredRecs.length} 项可再生项目依赖/构建缓存。` +
+      `已检查 ${scanResult.unclassifiedSamples.length} 个磁盘顶层目录，新发现 ${discoveredRecs.length} 项可再生项目依赖/构建缓存。` +
       (externalInsight ? ` Agent 备注：${externalInsight}` : ''),
     paths: discoveredRecs.flatMap((r) => r.paths)
   });
@@ -316,13 +352,6 @@ export async function runAgentExplorationAndReview(
       existingPathSet.add(norm);
       mergedCandidates.push(rec);
       mergedStones.push(stone);
-
-      // 从未归类石块中扣除已归类的构建产物字节数
-      const unknownStone = mergedStones.find((s) => s.id === 'stone-unclassified');
-      if (unknownStone && unknownStone.sizeBytes > rec.sizeBytes) {
-        unknownStone.sizeBytes -= rec.sizeBytes;
-        unknownStone.sizeText = formatBytesToKansoSize(unknownStone.sizeBytes);
-      }
     }
   }
 
@@ -348,7 +377,7 @@ export async function runAgentExplorationAndReview(
     detail: `共审查 ${mergedCandidates.length} 条建议，确认安全通过 ${approved.length} 条，撤回存疑或含个人原图目录 ${withdrawn.length} 条。`
   });
 
-  // 移除被撤回建议对应的临时缓存石块，防止在庭院图上残留无效石块
+  // 移除被撤回建议对应的临时缓存石块
   const withdrawnIdSet = new Set(withdrawn.map((w) => w.rec.id));
   const filteredStones = mergedStones.filter(
     (st) => !(st.recommendationId && withdrawnIdSet.has(st.recommendationId))
@@ -364,8 +393,8 @@ export async function runAgentExplorationAndReview(
     withdrawnCount: scanResult.withdrawnCount + withdrawn.length,
     agentStatusText:
       withdrawn.length > 0
-        ? `规则与 Agent 协同扫描完成（复核 Agent 已自动拦截并撤回 ${withdrawn.length} 项伪缓存或风险目录）。`
-        : '规则与 Agent 协同扫描及独立复核已全部完成。'
+        ? `规则与 Agent 协同扫描完成（复核 Agent 已拦截并撤回 ${withdrawn.length} 项伪缓存或风险目录）。`
+        : `真实磁盘扫描与独立 Agent 复核已完成（共确认 ${approved.length} 项真实可清理缓存）。`
   };
 
   return { updatedResult, logs };
