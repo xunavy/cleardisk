@@ -375,37 +375,69 @@ export function computeKansoGardenLayout(params: {
   freeBytes: number;
   stones: DiskStone[];
   selectedRecIds: Set<string>;
+  panelRightPx?: number;
+  panelBottomPx?: number;
   isNarrow?: boolean;
 }): GardenLayoutResult {
   const { width, height, freeBytes, stones, selectedRecIds } = params;
   const margin = 19;
   const stoneGap = 7.5;
 
-  // 左上角控制面板边界（宽屏下留出左上 x: 0..485, y: 0..635 给建议列表与清理按钮）
-  const panelRight = Math.round(width * 0.335); // 1440 下约为 482
-  const panelBottom = Math.round(height * 0.705); // 900 下约为 634
+  // 左上角控制面板边界（支持传入真实 DOM 测量坐标，或按 34% 宽度留白）
+  const panelRight = params.panelRightPx
+    ? Math.min(Math.round(width * 0.45), Math.max(320, Math.round(params.panelRightPx)))
+    : Math.round(width * 0.345);
+  const panelBottom = params.panelBottomPx
+    ? Math.min(Math.round(height * 0.78), Math.max(380, Math.round(params.panelBottomPx)))
+    : Math.round(height * 0.68);
 
   // 底部左侧凸区域（放置 2~3 块高权重个人内容大石块，如“文稿与下载”、“聊天记录”）
   const bottomLeftDomain: Point2D[] = [
-    { x: margin, y: panelBottom + 8 },
-    { x: panelRight - 8, y: panelBottom + 2 },
-    { x: panelRight - 14, y: height - margin },
+    { x: margin, y: panelBottom + 10 },
+    { x: panelRight - 6, y: panelBottom + 6 },
+    { x: panelRight - 10, y: height - margin },
     { x: margin, y: height - margin }
   ];
 
   // 右侧与中下部主庭院凸区域（涵盖可用空间砂纹区 + 主石块群）
   const mainGardenDomain: Point2D[] = [
-    { x: panelRight + 6, y: margin },
+    { x: panelRight + 10, y: margin },
     { x: width - margin, y: margin },
     { x: width - margin, y: height - margin },
-    { x: panelRight + 2, y: height - margin }
+    { x: panelRight + 6, y: height - margin }
   ];
 
-  // 挑选最多 2 块非可清理的 content 石块放入底部左侧区域，其余放入主庭院区域
-  const contentStones = stones.filter((s) => s.category === 'content' && !s.recommendationId);
-  const bottomLeftStones = contentStones.slice(1, 3);
+  // 按分类均衡选取石块，确保个人内容、开发工具、缓存（含所有已勾选项）、系统与未归类完整呈现
+  const contentAll = stones
+    .filter((s) => s.category === 'content')
+    .sort((a, b) => b.sizeBytes - a.sizeBytes)
+    .slice(0, 4);
+  const toolsAll = stones
+    .filter((s) => s.category === 'tools')
+    .sort((a, b) => b.sizeBytes - a.sizeBytes)
+    .slice(0, 4);
+  const cachesAll = stones
+    .filter((s) => s.category === 'caches')
+    .sort((a, b) => {
+      const aSel = a.recommendationId && selectedRecIds.has(a.recommendationId) ? 1 : 0;
+      const bSel = b.recommendationId && selectedRecIds.has(b.recommendationId) ? 1 : 0;
+      if (aSel !== bSel) return bSel - aSel;
+      return b.sizeBytes - a.sizeBytes;
+    })
+    .slice(0, 5);
+  const sysUnknownAll = stones.filter(
+    (s) => s.category === 'system' || s.category === 'unknown'
+  );
+
+  // 底部左侧区域放置 2 块个人内容石块（如“文稿与下载”、“聊天记录”），最大的一块个人内容石块（如“照片图库”或“项目与代码”）放在主庭院中央偏下
+  const bottomLeftStones = contentAll.length >= 2 ? contentAll.slice(1, 3) : contentAll.slice(0, 1);
   const bottomLeftIds = new Set(bottomLeftStones.map((s) => s.id));
-  const mainGardenStones = stones.filter((s) => !bottomLeftIds.has(s.id));
+  const mainGardenStones = [
+    ...contentAll.filter((s) => !bottomLeftIds.has(s.id)),
+    ...toolsAll,
+    ...cachesAll,
+    ...sysUnknownAll
+  ];
 
   const renderedStones: GardenStoneRenderItem[] = [];
 

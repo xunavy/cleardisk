@@ -182,7 +182,12 @@ export function validateCleanTarget(
  * 例如：196 GB -> "196 G"，14.5 GB -> "14.5 G"
  */
 export function formatBytesToKansoSize(bytes: number, forceOneDecimal = false): string {
-  const gb = Math.max(0, bytes) / (1024 ** 3);
+  const safeBytes = Math.max(0, bytes);
+  const gb = safeBytes / (1024 ** 3);
+  if (gb > 0 && gb < 0.08 && !forceOneDecimal) {
+    const mb = Math.max(1, Math.round(safeBytes / (1024 ** 2)));
+    return `${mb} M`;
+  }
   if (gb >= 100 && !forceOneDecimal) {
     return `${Math.round(gb)} G`;
   }

@@ -1,0 +1,684 @@
+/* 严格遵循原版 Kanso DESIGN.md 与 site.css 色彩与排版令牌体系 */
+:root {
+  --ground: #efebe1;
+  --ink: #2a2926;
+  --on-ink: #f4f1e9;
+  --rake: #cfc9ba;
+  --line: rgba(42, 41, 38, 0.16);
+  --hover: rgba(42, 41, 38, 0.06);
+  /* 石块色彩语义：颜色越深代表越难找回 (darker means harder to get back) */
+  --s-content: #2a2926;
+  --s-tools: #75726a;
+  --s-caches: #d3cec0;
+  --s-system: #e3ded2;
+  --s-mass: #ddd8cb;
+  --t-content: #f4f1e9;
+  --t-tools: #ffffff;
+  --t-caches: #2a2926;
+  --t-system: #55524a;
+  --t-mass: #2a2926;
+
+  --sans: "Microsoft YaHei UI", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --text-caption: 12px;
+  --text-small: 13px;
+  --text-body: 14px;
+  --text-lead: 15px;
+  --text-title: 17px;
+  --text-heading: 24px;
+  --text-unit: 26px;
+  --text-compact: 52px;
+  --text-hero: 72px;
+  --weight-thin: 200;
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --radius: 8px;
+  --radius-small: 5px;
+  --stroke: 1px;
+  --stroke-mark: 1.25px;
+  --stroke-strong: 2px;
+  --leading: 1.45;
+  --control: 34px;
+  --row: 34px;
+  --fast: 0.14s;
+  --dim: 0.82;
+  --disabled: 0.42;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #1a1916;
+  --ink: #e8e3d7;
+  --on-ink: #1a1916;
+  --rake: #3a3832;
+  --line: rgba(232, 227, 215, 0.18);
+  --hover: rgba(232, 227, 215, 0.08);
+  --s-content: #e8e3d7;
+  --s-tools: #96938a;
+  --s-caches: #3f3d37;
+  --s-system: #282723;
+  --s-mass: #2e2c27;
+  --t-content: #1a1916;
+  --t-tools: #14130f;
+  --t-caches: #e8e3d7;
+  --t-system: #bdb9ad;
+  --t-mass: #e8e3d7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #1a1916;
+    --ink: #e8e3d7;
+    --on-ink: #1a1916;
+    --rake: #3a3832;
+    --line: rgba(232, 227, 215, 0.18);
+    --hover: rgba(232, 227, 215, 0.08);
+    --s-content: #e8e3d7;
+    --s-tools: #96938a;
+    --s-caches: #3f3d37;
+    --s-system: #282723;
+    --s-mass: #2e2c27;
+    --t-content: #1a1916;
+    --t-tools: #14130f;
+    --t-caches: #e8e3d7;
+    --t-system: #bdb9ad;
+    --t-mass: #e8e3d7;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-body);
+  line-height: var(--leading);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 整个窗口容器：石块铺满背景，建议控制面板位于左上角留白区 */
+.kanso-window {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 枯山水 SVG 庭院层 */
+.bed.wide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rings {
+  fill: none;
+  stroke: var(--rake);
+  stroke-width: var(--stroke);
+  pointer-events: none;
+}
+
+.stone {
+  cursor: pointer;
+  transition: opacity var(--fast) ease;
+}
+
+.stone:hover {
+  opacity: 0.9;
+}
+
+.stone .shape {
+  transition: fill 0.22s ease, stroke 0.22s ease, stroke-width 0.22s ease;
+}
+
+.stone text,
+.free-label text {
+  text-anchor: middle;
+  font-size: var(--text-small);
+  pointer-events: none;
+}
+
+.stone .size,
+.free-label .size {
+  font-size: var(--text-caption);
+  opacity: 0.88;
+}
+
+.stone .big,
+.free-label .big {
+  font-size: var(--text-lead);
+  font-weight: var(--weight-medium);
+}
+
+.stone .size.big,
+.free-label .size.big {
+  font-weight: var(--weight-light);
+}
+
+.free-label text {
+  fill: var(--ink);
+}
+
+.f-content .shape {
+  fill: var(--s-content);
+}
+.f-content text {
+  fill: var(--t-content);
+}
+
+.f-tools .shape {
+  fill: var(--s-tools);
+}
+.f-tools text {
+  fill: var(--t-tools);
+}
+
+.f-caches .shape {
+  fill: var(--s-caches);
+  stroke: var(--rake);
+  stroke-width: var(--stroke);
+}
+.f-caches text {
+  fill: var(--t-caches);
+}
+
+.f-system .shape {
+  fill: var(--s-system);
+  stroke: var(--rake);
+  stroke-width: var(--stroke);
+}
+.f-system text {
+  fill: var(--t-system);
+}
+
+.f-unknown .shape {
+  fill: transparent;
+  stroke: var(--ink);
+  stroke-width: var(--stroke);
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+.f-unknown text {
+  fill: var(--ink);
+}
+
+/* 当可清理项被勾选时，石块变为镂空 + 内部同心砂纹 (.stone.hole) */
+.stone.hole .shape {
+  fill: transparent;
+  stroke: var(--ink);
+  stroke-width: var(--stroke-strong);
+}
+
+.stone.hole text {
+  fill: var(--ink);
+}
+
+.stone.active-inspect .shape {
+  stroke: var(--ink);
+  stroke-width: 2.5px;
+}
+
+/* 左上角留白控制面板 */
+.control-corner {
+  position: absolute;
+  left: 32px;
+  top: 18px;
+  width: min(31.5vw, 448px);
+  max-height: calc(100vh - 295px);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+/* 顶部导航栏 */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: 32px;
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.win-dots {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.win-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.win-dot.close {
+  background: #e26d5c;
+}
+.win-dot.min {
+  background: #e6b85c;
+}
+.win-dot.max {
+  background: #6ab06a;
+}
+
+.brand-title {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.01em;
+}
+
+/* 盘符切换器（遵循 Kanso 原版选择框样式） */
+.volume-select {
+  height: 26px;
+  padding: 0 8px;
+  background: var(--ground);
+  color: var(--ink);
+  border: var(--stroke) solid var(--line);
+  border-radius: var(--radius-small);
+  font-family: var(--sans);
+  font-size: var(--text-caption);
+  cursor: pointer;
+  outline: none;
+}
+
+.volume-select:hover {
+  border-color: var(--ink);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-small);
+  cursor: pointer;
+  opacity: 0.86;
+}
+
+.nav-btn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* 大字可用空间看板 */
+.hero-stat {
+  margin-top: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-number {
+  font-size: var(--text-hero);
+  font-weight: var(--weight-thin);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.hero-unit {
+  font-size: 24px;
+  font-weight: var(--weight-light);
+  margin-right: 4px;
+}
+
+.hero-caption {
+  font-size: var(--text-small);
+  opacity: 0.88;
+}
+
+.hero-sublead {
+  margin: 8px 0 14px;
+  font-size: var(--text-title);
+  font-weight: var(--weight-regular);
+}
+
+/* 建议分类列表容器 */
+.rec-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rec-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+.rec-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--rake);
+  border-radius: 2px;
+}
+
+.rec-group {
+  margin-bottom: 14px;
+}
+
+.rec-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  font-size: var(--text-small);
+}
+
+.rec-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--weight-medium);
+}
+
+.dot-safe {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ink);
+  display: inline-block;
+}
+
+.dot-confirm {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: linear-gradient(90deg, var(--ink) 50%, transparent 50%);
+  display: inline-block;
+}
+
+.rec-group-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+  opacity: 0.9;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.rec-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rec-item {
+  border-top: var(--stroke) solid var(--line);
+}
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--row);
+  padding: 4px 2px;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.rec-row:hover {
+  background: var(--hover);
+}
+
+.rec-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* 原版 Kanso 复选框样式 */
+.kanso-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.25px solid var(--ink);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex: none;
+  margin: 0;
+}
+
+.kanso-check:checked {
+  background: var(--ink);
+}
+
+.kanso-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 4.5px;
+  height: 8px;
+  border: solid var(--on-ink);
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(42deg);
+}
+
+.rec-title {
+  font-size: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rec-size {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  opacity: 0.92;
+}
+
+/* 展开的建议依据与命令详情 */
+.rec-detail {
+  padding: 4px 8px 10px 26px;
+  font-size: var(--text-caption);
+  border-top: 1px dashed var(--line);
+  user-select: text;
+}
+
+.rec-detail p {
+  margin: 3px 0;
+  opacity: 0.9;
+}
+
+.rec-cmd {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 6px;
+  background: var(--hover);
+  border-radius: var(--radius-small);
+  font-family: var(--mono);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+/* 底部操作按钮栏 */
+.action-bar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-body);
+  cursor: pointer;
+  transition: opacity var(--fast) ease, background var(--fast) ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.btn.primary {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: var(--weight-medium);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: var(--dim);
+}
+
+.btn:disabled {
+  opacity: var(--disabled);
+  cursor: not-allowed;
+}
+
+.status-banner {
+  margin-top: 8px;
+  font-size: var(--text-caption);
+  opacity: 0.8;
+  min-height: 18px;
+}
+
+/* 模态面板（工作记录 / 设置 / 石块详情，遵循无阴影极简边框风格） */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 25, 22, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal-sheet {
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  background: var(--ground);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: var(--stroke) solid var(--line);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 0;
+}
+
+.log-item {
+  padding: 10px 0;
+  border-bottom: var(--stroke) solid var(--line);
+}
+
+.log-item-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+}
+
+.log-item-time {
+  font-size: var(--text-caption);
+  opacity: 0.7;
+  font-weight: var(--weight-regular);
+}
+
+.log-item-detail {
+  margin-top: 4px;
+  font-size: var(--text-caption);
+  opacity: 0.9;
+}
+
+.form-row {
+  margin-bottom: 14px;
+}
+
+.form-row label {
+  display: block;
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  margin-bottom: 5px;
+}
+
+.form-control {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--ground);
+  color: var(--ink);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-small);
+  font-family: var(--sans);
+  font-size: var(--text-small);
+}

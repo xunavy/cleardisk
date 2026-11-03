@@ -128,7 +128,7 @@ function exploreUnclassifiedSamplesHeuristically(
 
           discoveredStones.push({
             id: `stone-agent-${recId}`,
-            label: '构建产物',
+            label: `${sample.name} 依赖`,
             category: 'caches',
             sizeBytes: sz,
             sizeText,
@@ -335,21 +335,18 @@ export async function runAgentExplorationAndReview(
     detail: `共审查 ${mergedCandidates.length} 条建议，确认安全通过 ${approved.length} 条，撤回存疑或含个人原图目录 ${withdrawn.length} 条。`
   });
 
-  // 移除被撤回建议在石块上的 recommendationId 关联，防止被勾选清理
+  // 移除被撤回建议对应的临时缓存石块，防止在庭院图上残留无效石块
   const withdrawnIdSet = new Set(withdrawn.map((w) => w.rec.id));
-  for (const st of mergedStones) {
-    if (st.recommendationId && withdrawnIdSet.has(st.recommendationId)) {
-      delete st.recommendationId;
-      st.category = 'content';
-    }
-  }
+  const filteredStones = mergedStones.filter(
+    (st) => !(st.recommendationId && withdrawnIdSet.has(st.recommendationId))
+  );
 
   approved.sort((a, b) => b.sizeBytes - a.sizeBytes);
-  mergedStones.sort((a, b) => b.sizeBytes - a.sizeBytes);
+  filteredStones.sort((a, b) => b.sizeBytes - a.sizeBytes);
 
   const updatedResult: ScanResult = {
     ...scanResult,
-    stones: mergedStones,
+    stones: filteredStones,
     recommendations: approved,
     withdrawnCount: scanResult.withdrawnCount + withdrawn.length,
     agentStatusText:

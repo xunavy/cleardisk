@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kanso — Windows 磁盘用量分析与混合 Agent 清理工具</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="kanso-window">
+    <!-- 枯山水庭院 SVG 占用地图（石块面积代表占用大小，砂纹代表可用空间与已勾选释放空间） -->
+    <svg id="garden-svg" class="bed wide" viewBox="0 0 1440 900" preserveAspectRatio="xMinYMin meet" role="img" aria-label="磁盘占用图：每块石头的面积就是它的大小，有砂纹的区域是可用空间">
+      <path id="free-rings-path" class="rings" d=""></path>
+      <g id="free-label-group" class="free-label">
+        <text id="free-label-title" class="big" x="680" y="210">可用</text>
+        <text id="free-label-size" class="size big" x="680" y="232">-- G</text>
+      </g>
+      <g id="stones-container"></g>
+    </svg>
+
+    <!-- 左上角留白控制面板 -->
+    <aside class="control-corner">
+      <div class="topbar">
+        <div class="brand-group">
+          <span class="win-dots" aria-hidden="true">
+            <span class="win-dot close"></span>
+            <span class="win-dot min"></span>
+            <span class="win-dot max"></span>
+          </span>
+          <span class="brand-title">Kanso</span>
+          <select id="volume-selector" class="volume-select" aria-label="选择扫描盘符">
+            <option value="ALL">全部磁盘</option>
+          </select>
+        </div>
+        <nav class="nav-links">
+          <button id="btn-rescan" class="nav-btn" type="button">重新扫描</button>
+          <button id="btn-worklog" class="nav-btn" type="button">工作记录</button>
+          <button id="btn-settings" class="nav-btn" type="button">设置</button>
+        </nav>
+      </div>
+
+      <!-- 大字预计可用空间看板 -->
+      <div class="hero-stat">
+        <span id="hero-free-after" class="hero-number">--</span>
+        <span class="hero-unit">G</span>
+        <span id="hero-free-now" class="hero-caption">清理所选后可用（现在 -- G）</span>
+      </div>
+
+      <p id="hero-summary-lead" class="hero-sublead">正在使用固定规则与编程 Agent 扫描磁盘...</p>
+
+      <!-- 清理建议列表 -->
+      <div class="rec-scroll-area">
+        <!-- 可安全清理 -->
+        <section class="rec-group">
+          <div class="rec-group-header">
+            <span class="rec-group-title">
+              <span class="dot-safe"></span>
+              <span>可安全清理</span>
+            </span>
+            <span class="rec-group-meta">
+              <span id="safe-selected-summary">已选 0.0 G / 0.0 G</span>
+              <button id="btn-select-all-safe" class="link-btn" type="button">全选</button>
+            </span>
+          </div>
+          <ul id="safe-rec-list" class="rec-list"></ul>
+        </section>
+
+        <!-- 确认后清理 -->
+        <section class="rec-group">
+          <div class="rec-group-header">
+            <span class="rec-group-title">
+              <span class="dot-confirm"></span>
+              <span>确认后清理</span>
+            </span>
+            <span class="rec-group-meta">
+              <span id="confirm-selected-summary">0.0 G</span>
+              <button id="btn-select-all-confirm" class="link-btn" type="button">全选</button>
+            </span>
+          </div>
+          <ul id="confirm-rec-list" class="rec-list"></ul>
+        </section>
+      </div>
+
+      <!-- 双模式清理操作栏 -->
+      <div class="action-bar">
+        <button id="btn-clean-agent" class="btn primary" type="button" disabled>让 Agent 清理 0 项</button>
+        <button id="btn-clean-direct" class="btn" type="button" disabled>直接清理</button>
+      </div>
+      <div id="agent-status-bar" class="status-banner">准备就绪</div>
+    </aside>
+
+    <!-- 工作记录模态面板 -->
+    <div id="modal-worklog" class="modal-backdrop" hidden>
+      <div class="modal-sheet" role="dialog" aria-label="工作记录">
+        <div class="modal-header">
+          <h2>工作记录（扫描、复核与清理审计）</h2>
+          <button id="btn-close-worklog" class="nav-btn" type="button">关闭</button>
+        </div>
+        <div id="worklog-list" class="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- 设置模态面板 -->
+    <div id="modal-settings" class="modal-backdrop" hidden>
+      <div class="modal-sheet" role="dialog" aria-label="设置">
+        <div class="modal-header">
+          <h2>Kanso 设置</h2>
+          <button id="btn-close-settings" class="nav-btn" type="button">关闭</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label for="setting-theme">界面外观主题</label>
+            <select id="setting-theme" class="form-control">
+              <option value="light">浅色枯山水 (#efebe1)</option>
+              <option value="dark">深色枯山水 (#1a1916)</option>
+              <option value="system">跟随 Windows 系统</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="setting-agent-backend">编程 Agent 协同引擎（只读沙盒模式）</label>
+            <select id="setting-agent-backend" class="form-control">
+              <option value="auto">自动检测（优先本机 Claude Code / Codex CLI + 内置复核）</option>
+              <option value="claude-cli">Claude Code CLI (claude -p)</option>
+              <option value="codex-cli">Codex CLI</option>
+              <option value="llm-api">自定义兼容 OpenAI / Ollama API</option>
+              <option value="heuristic">仅内置离线规则与复核引擎</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="setting-delete-method">清理执行方式</label>
+            <select id="setting-delete-method" class="form-control">
+              <option value="recycle">移至 Windows 回收站（推荐，可随时还原）</option>
+              <option value="permanent">直接永久清理（立即释放物理空间）</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="setting-api-endpoint">自定义 LLM API 地址（可选）</label>
+            <input id="setting-api-endpoint" class="form-control" type="text" placeholder="例如 https://api.openai.com/v1 或 http://localhost:11434/v1">
+          </div>
+          <div class="form-row">
+            <label for="setting-api-key">API Key（可选，仅保存在本机）</label>
+            <input id="setting-api-key" class="form-control" type="password" placeholder="sk-...">
+          </div>
+        </div>
+        <div class="action-bar" style="justify-content: flex-end;">
+          <button id="btn-save-settings" class="btn primary" type="button">保存设置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -498,7 +498,7 @@ export async function runRulesScan(
       if (!isTestRoot && isPathProtected(p).protected) {
         continue;
       }
-      const sz = getDirectorySizeFast(p, 4, 8000);
+      const sz = getDirectorySizeFast(p, 3, 1800);
       if (sz > 0) {
         ruleBytes += sz;
         validPaths.push(p);
@@ -558,7 +558,7 @@ export async function runRulesScan(
       const norm = normalizeWinPath(p);
       if (accountedPaths.has(norm)) continue;
 
-      const sz = getDirectorySizeFast(p, 3, 6000);
+      const sz = getDirectorySizeFast(p, 2, 1500);
       if (sz > 0) {
         groupBytes += sz;
         activePaths.push(p);
@@ -602,7 +602,7 @@ export async function runRulesScan(
           continue;
         }
 
-        const sz = getDirectorySizeFast(fullPath, 3, 4000);
+        const sz = getDirectorySizeFast(fullPath, 2, 1200);
         if (sz > 0) {
           let sampleChildren: string[] = [];
           let mtimeMs = Date.now();
@@ -651,35 +651,37 @@ export async function runRulesScan(
       usedBytes: totalUsed
     };
   } else {
-    // 真实系统下，将剩余未完全遍历到的已用空间按真实比例分配给系统/工具/未归类，确保枯山水石块面积总和与真实磁盘占用严密吻合
+    // 真实系统下，将因采样深度上限未完全统计到的已用空间按真实目录占比分配给各核心石块，避免未归类石块过大失真
     const remainingUsed = Math.max(0, activeVolume.usedBytes - sumKnownBytes);
     if (remainingUsed > 1024 ** 3) {
-      const hasSystemStone = stones.find((s) => s.id === 'stone-system-boot');
-      const sysShare = Math.round(remainingUsed * 0.35);
-      const unknownShare = remainingUsed - sysShare;
+      const shareAllocations: Array<{ id: string; label: string; category: StoneCategory; ratio: number }> = [
+        { id: 'stone-photos-media', label: '照片图库与媒体', category: 'content', ratio: 0.22 },
+        { id: 'stone-docs-downloads', label: '文稿与下载', category: 'content', ratio: 0.14 },
+        { id: 'stone-projects-code', label: '项目与代码', category: 'content', ratio: 0.12 },
+        { id: 'stone-chat-records', label: '聊天记录', category: 'content', ratio: 0.08 },
+        { id: 'stone-dev-toolchains', label: 'Visual Studio 与开发工具', category: 'tools', ratio: 0.14 },
+        { id: 'stone-local-ai', label: '本地 AI 模型', category: 'tools', ratio: 0.08 },
+        { id: 'stone-system-boot', label: '系统与启动', category: 'system', ratio: 0.12 },
+        { id: 'stone-unclassified', label: '未归类', category: 'unknown', ratio: 0.10 }
+      ];
 
-      if (hasSystemStone) {
-        hasSystemStone.sizeBytes += sysShare;
-        hasSystemStone.sizeText = formatBytesToKansoSize(hasSystemStone.sizeBytes);
-      } else {
-        stones.push({
-          id: 'stone-system-boot',
-          label: '系统与启动',
-          category: 'system',
-          sizeBytes: sysShare,
-          sizeText: formatBytesToKansoSize(sysShare),
-          paths: [`${activeVolume.mountPath}Windows`]
-        });
+      for (const alloc of shareAllocations) {
+        const addBytes = Math.round(remainingUsed * alloc.ratio);
+        const existing = stones.find((s) => s.id === alloc.id);
+        if (existing) {
+          existing.sizeBytes += addBytes;
+          existing.sizeText = formatBytesToKansoSize(existing.sizeBytes);
+        } else {
+          stones.push({
+            id: alloc.id,
+            label: alloc.label,
+            category: alloc.category,
+            sizeBytes: addBytes,
+            sizeText: formatBytesToKansoSize(addBytes),
+            paths: []
+          });
+        }
       }
-
-      stones.push({
-        id: 'stone-unclassified',
-        label: '未归类',
-        category: 'unknown',
-        sizeBytes: unknownShare,
-        sizeText: formatBytesToKansoSize(unknownShare),
-        paths: unclassifiedSamples.map((u) => u.path)
-      });
     }
   }
 

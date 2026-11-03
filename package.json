@@ -5,7 +5,7 @@
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",
-    "start": "npm run build && electron .",
+    "start": "npm run build && node scripts/launch-electron.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
