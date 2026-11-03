@@ -167,7 +167,14 @@ async function queryExternalAgentInsight(
     JSON.stringify(summaryPayload);
 
   try {
-    if (settings.agentBackend === 'llm-api' && settings.llmApiEndpoint) {
+    let effectiveBackend = settings.agentBackend;
+    if (effectiveBackend === 'auto') {
+      const cliStatus = await detectInstalledCliAgents();
+      if (cliStatus.claude) effectiveBackend = 'claude-cli';
+      else if (cliStatus.codex) effectiveBackend = 'codex-cli';
+    }
+
+    if (effectiveBackend === 'llm-api' && settings.llmApiEndpoint) {
       const url = `${settings.llmApiEndpoint.replace(/\/+$/, '')}/chat/completions`;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (settings.llmApiKey) {
@@ -187,9 +194,15 @@ async function queryExternalAgentInsight(
         const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
         return data.choices?.[0]?.message?.content?.trim() || null;
       }
-    } else if (settings.agentBackend === 'claude-cli') {
+    } else if (effectiveBackend === 'claude-cli') {
       const { stdout } = await execFileAsync('claude', ['-p', readOnlyPrompt], {
-        timeout: 8000,
+        timeout: 6000,
+        windowsHide: true
+      });
+      if (stdout && stdout.trim()) return stdout.trim().slice(0, 200);
+    } else if (effectiveBackend === 'codex-cli') {
+      const { stdout } = await execFileAsync('codex', ['exec', readOnlyPrompt], {
+        timeout: 6000,
         windowsHide: true
       });
       if (stdout && stdout.trim()) return stdout.trim().slice(0, 200);

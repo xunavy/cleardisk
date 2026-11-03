@@ -22,3 +22,4 @@ if (fs.existsSync(appJsPath)) {
 }
 
 console.log('Renderer assets copied to dist/renderer/');
+

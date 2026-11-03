@@ -46,3 +46,4 @@ describe('Kanso 设计令牌与桌面界面结构一致性测试', () => {
     expect(html).toContain('直接清理');
   });
 });
+

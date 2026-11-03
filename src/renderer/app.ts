@@ -114,7 +114,7 @@ interface Window {
       .filter((r) => selectedRecIds.has(r.id))
       .reduce((s, r) => s + r.sizeBytes, 0);
     const selectedConfirmBytes = confirmRecs
-      .filter((r) => selectedRecIds.has(r) || selectedRecIds.has(r.id))
+      .filter((r) => selectedRecIds.has(r.id))
       .reduce((s, r) => s + r.sizeBytes, 0);
     const totalSelectedBytes = selectedSafeBytes + selectedConfirmBytes;
 

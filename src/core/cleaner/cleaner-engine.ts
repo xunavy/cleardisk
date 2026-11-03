@@ -176,6 +176,19 @@ export async function executeClean(
         continue;
       }
 
+      // 2.5 若是“让 Agent 清理”模式，复验目录修改时间戳自扫描完成以来未被外部大幅篡改
+      if (mode === 'agent' && rec.scannedMtimeMs) {
+        try {
+          const curStat = fs.statSync(targetPath);
+          if (curStat.mtimeMs - rec.scannedMtimeMs > 60_000) {
+            skipReason = `目录在扫描完成后发生过外部写入修改 (${targetPath})，Agent 为安全起见已跳过，请重新扫描确认。`;
+            continue;
+          }
+        } catch {
+          // ignore stat error
+        }
+      }
+
       // 3. 测量清理前目录真实大小
       const beforeDirBytes = getDirectorySizeFast(targetPath, 5, 20000);
 
@@ -192,7 +205,8 @@ export async function executeClean(
         }
       } else if (settings.deleteMethod === 'recycle') {
         const moved = await movePathToWindowsRecycleBin(targetPath);
-        if (!moved) {
+        if (!moved && rec.riskLevel === 'safe') {
+          // 仅对可安全重建的纯缓存目录在整体移入回收站受阻时按文件粒度容错清理未锁定缓存
           deletePathPermanentlyFaultTolerant(targetPath);
         }
       } else {
@@ -248,3 +262,4 @@ export async function executeClean(
     logs
   };
 }
+

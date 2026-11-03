@@ -77,7 +77,7 @@ export async function listWindowsVolumes(): Promise<DiskVolume[]> {
   const volumes: DiskVolume[] = [];
   const sysDrive = (process.env.SystemDrive || 'C:').toUpperCase();
 
-  // 遍历 A-Z 盘符，利用 Node.js 18+ 原生 fs.statfsSync 秒级读取卷空间信息
+  // 遍历 C-Z 盘符，利用 Node.js 18+ 原生 fs.statfsSync 秒级读取卷空间信息
   for (let code = 67; code <= 90; code++) {
     const letter = String.fromCharCode(code);
     const id = `${letter}:`;
